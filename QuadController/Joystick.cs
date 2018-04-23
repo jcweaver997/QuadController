@@ -75,21 +75,10 @@ namespace QuadController
         enum STATE : byte { PRESSED = 0x01, RELEASED = 0x00 }
         enum TYPE : byte { AXIS = 0x02, BUTTON = 0x01 }
         enum MODE : byte { CONFIGURATION = 0x80, VALUE = 0x00 }
-
-        /// &lt;summary&gt;
-        /// Buttons collection, key: address, bool: value
-        /// &lt;/summary&gt;
         protected Dictionary<byte, bool> Button;
-
-        /// &lt;summary&gt;
-        /// Axis collection, key: address, short: value
-        /// &lt;/summary&gt;
         protected Dictionary<byte, short> Axis;
 
-        /// &lt;summary&gt;
-        /// Function recognizes flags in buffer and modifies value of button, axis or configuration.
-        /// Every new buffer changes only one value of one button/axis. Joystick object have to remember all previous values.
-        /// &lt;/summary&gt;
+
         private void DetectChange(byte[] buff)
         {
             // If configuration
@@ -133,9 +122,6 @@ namespace QuadController
             }
         }
 
-        /// &lt;summary&gt;
-        /// Checks if bits that are set in flag are set in value.
-        /// &lt;/summary&gt;
         private bool checkBit(byte value, byte flag)
         {
             byte c = (byte)(value & flag);

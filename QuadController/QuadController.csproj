@@ -40,6 +40,7 @@
   <ItemGroup>
     <Compile Include="JcRobotNetworking.cs" />
     <Compile Include="Joystick.cs" />
+    <Compile Include="LogitechController.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="WeirdChineseController.cs" />

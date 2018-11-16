@@ -134,7 +134,9 @@ namespace QuadController
             IPAddress serverAddr = GetRobotIP();
 
             other = new IPEndPoint(serverAddr, port);
+            Console.WriteLine("Connecting...");
             socket.Connect(other);
+            Console.WriteLine("Connected!");
             listenThread = new Thread(ListenThread);
             listenerRunning = true;
             listenThread.Start();

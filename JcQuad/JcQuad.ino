@@ -1,9 +1,11 @@
+
 #include <FastPID.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h> 
 #include <WiFiUdp.h>
 #include <Wire.h> 
 #include "mpu9250.h"
+#include <Servo.h> 
 
 const char *ssid = "JcQuad";
 const char *password = "F!v3five";
@@ -11,7 +13,7 @@ const char *password = "F!v3five";
 WiFiUDP Udp;
 unsigned int port = 1296;
 char incomingPacket[5];
-float pidKp=35, pidKi=0, pidKd=0, pidHz=100;
+float pidKp=5, pidKi=0, pidKd=0, pidHz=100;
 int output_bits = 16;
 bool output_signed = true;
 bool enabled = false;
@@ -21,6 +23,11 @@ FastPID pitchpid(pidKp, pidKi, pidKd, pidHz, output_bits, output_signed);
 float rollOffset = 12.5f;
 float pitchOffset = 6.0f;
 float hover = 0;
+
+Servo flMotor;
+Servo frMotor;
+Servo blMotor;
+Servo brMotor;
 
 unsigned long quadTimeout = 2000;
 
@@ -35,7 +42,6 @@ union unionHelper
 };
 
 void setup() {
-  setAllPower(0);
 
   //delay(5000);
 
@@ -53,12 +59,18 @@ void setup() {
     Serial.println("There is a configuration error!");
     for (;;) {}
   }
+  delay(5000);
+  flMotor.attach(D6);
+  frMotor.attach(D5);
+  blMotor.attach(D7);
+  brMotor.attach(D8);
+  setPower(flMotor,0);
+  setPower(frMotor,0);
+  setPower(blMotor,0);
+  setPower(brMotor,0);
 
 
 }
-
-
-
 
 void ledCommand(char* para){
   if(para[0]){
@@ -68,25 +80,16 @@ void ledCommand(char* para){
   }
 
 }
-void setAllPower(float power){
-  int powers = power*PWMRANGE;
-  if(powers<1){
-    powers = 1;
-  }
-  analogWrite(D5,powers);
-  analogWrite(D6,powers);
-  analogWrite(D7,powers);
-  analogWrite(D8,powers);
-  //Serial.print("Motors set to: ");
-  //Serial.print(powers);
-  //Serial.print("\n");
-}
 
-void setPower(int pin, int power){
+void setPower(Servo servo, float power){
   if(power<0){
     power = 0;
   }
-  analogWrite(pin, power);
+  if(power>1.0f){
+    power = 1.0f;
+  }
+  //printf("Writing %f\n",1000*(1+power));
+  servo.writeMicroseconds((int)(1000*(1+power)));
 }
 
 void fillUH(unionHelper* uh, char* incomingPacket){
@@ -117,38 +120,45 @@ void handlePackets(){
       unionHelper enabledu;
       fillUH(&enabledu, incomingPacket+1);
       enabled = enabledu.ui==port?true:false;
+      printf("enabled %b\n",enabled);
       break;
       case 1: // Power
       unionHelper inhover;
       fillUH(&inhover, incomingPacket+1);
       hover = inhover.f;
+      //printf("hover %f\n",hover);
       break;
       case 2: // kp
       unionHelper newkp;
       fillUH(&newkp, incomingPacket+1);
       pidKp = newkp.f;
       reconfigurePids();
+      printf("kp %f\n",pidKp);
       break;
       case 3: // kd
       unionHelper newkd;
       fillUH(&newkd, incomingPacket+1);
-      pidKd = newkp.f;
+      pidKd = newkd.f;
       reconfigurePids();
+      printf("kd %f\n",pidKd);
       break;
       case 4: // ki
       unionHelper newki;
       fillUH(&newki, incomingPacket+1);
       pidKi = newki.f;
       reconfigurePids();
+      printf("ki %f\n",pidKi);
       case 5: // rollOffset
       unionHelper ro;
       fillUH(&ro, incomingPacket+1);
       rollOffset = ro.f;
+      printf("ro %f\n",rollOffset);
       break;
       case 6: // pitchOffset
       unionHelper pith;
       fillUH(&pith, incomingPacket+1);
       pitchOffset = pith.f;
+      printf("po %f\n",pitchOffset);
       break;
       
     }
@@ -158,24 +168,32 @@ void handlePackets(){
 void loop() {
   handlePackets();
 
-  if(millis()-lastMessageTime>quadTimeout){
+  if(millis()-lastMessageTime>quadTimeout && enabled){
+    printf("timed out\n");
      enabled = false;
   }
   
   if(!enabled){
-      delay(5);
+      setPower(flMotor,0);
+      setPower(frMotor,0);
+      setPower(blMotor,0);
+      setPower(brMotor,0);
+      delay(15);
       return;
   }
   MpuTestLoop();
-  int16_t output = rollpid.step(0, roll-rollOffset);
+  int16_t output = rollpid.step(0, roll-rollOffset)/(float)PWMRANGE;
   //Serial.printf("roll %f, output: %d\n", roll-rollOffset, output);
-  setPower(D6,output+hover);// right
-  setPower(D8,-output+hover); // left
+  //setPower(D6,output+hover);// right
+  //setPower(D8,-output+hover); // left
 
-   int16_t poutput = pitchpid.step(0, pitch-pitchOffset);
-  //Serial.printf("pitch %f, output: %d\n", pitch, poutput);
-  setPower(D5,poutput+hover);// top
-  setPower(D7,-poutput+hover); // bottom
+   float poutput = pitchpid.step(0, pitch-pitchOffset)/(float)PWMRANGE;
+   if(-poutput+hover>0){
+    Serial.printf(" output: %f\n", -poutput+hover);
+   }  
+  //setPower(flMotor,poutput+hover);
+  setPower(frMotor,-poutput+hover);
+
   
   //analogWrite(D5,-output);// top
   delay(5);

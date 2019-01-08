@@ -76,6 +76,7 @@ namespace QuadController
             }
 
         }
+        
         private IPAddress GetRobotIP()
         {
             IPHostEntry entry = null;
@@ -131,7 +132,7 @@ namespace QuadController
         {
             socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 
-            IPAddress serverAddr = GetRobotIP();
+            IPAddress serverAddr = IPAddress.Parse(robotHostName)??GetRobotIP();
 
             other = new IPEndPoint(serverAddr, port);
             Console.WriteLine("Connecting...");
